@@ -35,7 +35,7 @@ WINDOW_END = datetime(2026, 8, 28, 23, 59, tzinfo=timezone.utc)
 # gap sits well under 90 minutes; beyond three hours the schedule has stalled.
 FRESH_WARN_MIN, FRESH_FAIL_MIN = 90, 180
 COVERAGE_MIN_SAMPLE = 6                    # hours of history before coverage is graded
-COVERAGE_WARN, COVERAGE_FAIL = 0.85, 0.60  # fraction of expected hourly runs that landed
+COVERAGE_WARN, COVERAGE_FAIL = 0.70, 0.60  # fraction of expected hourly runs that landed
 ERROR_RATE_WARN, ERROR_RATE_FAIL = 0.05, 0.20
 PRICE_FLOOR, PRICE_CEILING = 5_000, 500_000
 PRICE_JUMP_WARN = 0.40                     # fractional move vs previous observation

@@ -24,7 +24,7 @@ DATA_FILE = PROJECT_DIR / "data" / "flight_prices.csv"
 HTML_OUT = PROJECT_DIR / "docs" / "index.html"
 README_OUT = PROJECT_DIR / "README.md"
 
-ROUTE = "MAA -> DXB"
+ROUTE = "MAA → DXB"
 EXPECTED_DATES = ("2026-09-01", "2026-09-02", "2026-09-03")
 SERIES_COLOURS = {
     "2026-09-01": "var(--s1)",
@@ -32,8 +32,8 @@ SERIES_COLOURS = {
     "2026-09-03": "var(--s3)",
 }
 STALE_MIN, DEAD_MIN = 90, 180
-RUN_STRIP_HOURS = 72
-IST = timedelta(hours=5, minutes=30)
+RUN_STRIP_DAYS = 15
+IST = timezone(timedelta(hours=5, minutes=30))
 
 README_START = "<!-- DASHBOARD:START -->"
 README_END = "<!-- DASHBOARD:END -->"
@@ -48,7 +48,8 @@ def parse_ts(value: str) -> datetime | None:
 
 
 def hour_bucket(stamp: datetime) -> datetime:
-    return stamp.replace(minute=0, second=0, microsecond=0)
+    """Floor a timestamp to its IST wall-clock hour."""
+    return stamp.astimezone(IST).replace(minute=0, second=0, microsecond=0)
 
 
 def rupees(value: float) -> str:
@@ -81,11 +82,25 @@ def cheapest_series(observations) -> dict[str, list[tuple[datetime, int]]]:
     return series
 
 
-def svg_chart(series: dict[str, list[tuple[datetime, int]]], width: int = 920, height: int = 340) -> str:
+def daily_series(hourly: dict[str, list[tuple[datetime, int]]]) -> dict[str, list[tuple[datetime, int]]]:
+    """Lowest fare per IST calendar day for each departure date."""
+    result: dict[str, list[tuple[datetime, int]]] = defaultdict(list)
+    for dep_date, points in hourly.items():
+        lows: dict[datetime, int] = {}
+        for stamp, price in points:
+            day = stamp.replace(hour=0)
+            lows[day] = min(lows.get(day, price), price)
+        result[dep_date] = sorted(lows.items())
+    return result
+
+
+def svg_chart(series: dict[str, list[tuple[datetime, int]]], width: int = 920, height: int = 340,
+              empty_message: str | None = None) -> str:
     points = [(t, p) for pts in series.values() for t, p in pts]
     if len(points) < 2:
-        return ('<p class="empty">Not enough observations yet to plot a trend. '
-                'The chart appears once two hourly runs have completed.</p>')
+        message = empty_message or ('Not enough observations yet to plot a trend. '
+                                    'The chart appears once two hourly runs have completed.')
+        return f'<p class="empty">{message}</p>'
 
     pad_l, pad_r, pad_t, pad_b = 74, 18, 18, 40
     t_min = min(t for t, _ in points)
@@ -116,7 +131,7 @@ def svg_chart(series: dict[str, list[tuple[datetime, int]]], width: int = 920, h
     for i in range(ticks + 1):
         stamp = t_min + timedelta(seconds=span * i / ticks)
         x = x_of(stamp)
-        label = (stamp + IST).strftime("%d %b %H:%M")
+        label = stamp.strftime("%d %b") if span > 48 * 3600 else stamp.strftime("%d %b %H:%M")
         parts.append(f'<text class="tick" x="{x:.1f}" y="{height - pad_b + 22}" text-anchor="middle">{label}</text>')
 
     for dep_date in EXPECTED_DATES:
@@ -138,27 +153,49 @@ def run_strip(observations, now: datetime) -> tuple[str, int, int]:
     for stamp, row in observations:
         by_bucket[hour_bucket(stamp)].append(row["status"])
 
-    cells, landed, failed = [], 0, 0
-    start = hour_bucket(now) - timedelta(hours=RUN_STRIP_HOURS - 1)
-    for i in range(RUN_STRIP_HOURS):
-        bucket = start + timedelta(hours=i)
-        statuses = by_bucket.get(bucket)
-        label = (bucket + IST).strftime("%d %b %H:%M IST")
-        if not statuses:
-            state, title = ("future", f"{label} - not due yet") if bucket > hour_bucket(now) \
-                else ("missing", f"{label} - no run recorded")
-        elif "ERROR" in statuses and "OK" in statuses:
-            state, title, landed = "partial", f"{label} - partial ({statuses.count('OK')} ok)", landed + 1
-        elif "ERROR" in statuses:
-            state, title, landed, failed = "bad", f"{label} - all rows ERROR", landed + 1, failed + 1
-        else:
-            state, title, landed = "good", f"{label} - {len(statuses)} rows OK", landed + 1
-        cells.append(f'<span class="cell {state}" title="{html.escape(title)}"></span>')
-    return "".join(cells), landed, failed
+    if not by_bucket:
+        return '<p class="empty">No runs recorded yet.</p>', 0, 0
+
+    current = hour_bucket(now)
+    first = min(by_bucket)
+    first_day = first.replace(hour=0)
+    last_day = current.replace(hour=0)
+    start_day = max(first_day, last_day - timedelta(days=RUN_STRIP_DAYS - 1))
+    rows, landed, failed = [], 0, 0
+    day = start_day
+    while day <= last_day:
+        cells = []
+        for hour in range(24):
+            bucket = day.replace(hour=hour)
+            statuses = by_bucket.get(bucket)
+            label = bucket.strftime("%d %b %H:%M IST")
+            if bucket < first:
+                state, title = "before", f"{label} - tracking not started"
+            elif statuses and "ERROR" in statuses and "OK" in statuses:
+                state, title, landed = "partial", f"{label} - partial ({statuses.count('OK')} ok)", landed + 1
+            elif statuses and "ERROR" in statuses:
+                state, title, landed, failed = "error", f"{label} - all rows ERROR", landed + 1, failed + 1
+            elif statuses:
+                state, title, landed = "ok", f"{label} - {len(statuses)} rows OK", landed + 1
+            elif bucket >= current:
+                state, title = "not-due", f"{label} - not due yet"
+            else:
+                state, title = "missed", f"{label} - no run recorded"
+            cells.append(f'<span class="cell {state}" title="{html.escape(title)}"></span>')
+        rows.append(f'<div class="health-row"><span class="health-date">{day:%d %b}</span>'
+                    f'<div class="health-cells">{"".join(cells)}</div></div>')
+        day += timedelta(days=1)
+    return "".join(rows), landed, failed
 
 
-def build_cards(series, observations) -> str:
+def duration_text(delta: timedelta) -> str:
+    hours = max(0, int(delta.total_seconds() // 3600))
+    return f"{hours // 24} d" if hours >= 48 else f"{hours} h"
+
+
+def build_cards(series, observations, now: datetime) -> str:
     latest_bucket = max((hour_bucket(t) for t, _ in observations), default=None)
+    today = now.astimezone(IST).date()
     cards = []
     for dep_date in EXPECTED_DATES:
         pts = series.get(dep_date, [])
@@ -181,23 +218,46 @@ def build_cards(series, observations) -> str:
             trend, arrow = "down", "&#9660;"
         else:
             trend, arrow = "flat", "&#8212;"
-        change = "no change" if delta == 0 else f"{arrow} {rupees(abs(delta))}"
-        basis = "vs 24h ago" if earlier else "since tracking began"
+        if delta == 0:
+            changed_at = next((t for (t, p), (_, previous) in zip(reversed(pts), reversed(pts[:-1]))
+                               if p != previous), pts[0][0])
+            change = f"unchanged for {duration_text(stamp - changed_at)}"
+            basis = ""
+        else:
+            change = f"{arrow} {rupees(abs(delta))}"
+            basis = "vs 24h ago" if earlier else "since tracking began"
+
+        low_stamp = next(t for t, p in pts if p == window_min)
+        if current == window_min:
+            best_seen = '<span class="best-badge">lowest so far</span>'
+        else:
+            best_seen = f'<span class="best-seen">lowest yet {rupees(window_min)} &middot; {duration_text(stamp - low_stamp)} ago</span>'
+        days_out = (datetime.fromisoformat(dep_date).date() - today).days
 
         stale = " stale" if latest_bucket and stamp < latest_bucket else ""
         cards.append(
             f'<article class="card{stale}">'
             f'<h3>{dep_date}</h3>'
+            f'<p class="days-out">{days_out} days out</p>'
             f'<p class="price">{rupees(current)}</p>'
             f'<p class="delta {trend}">{change} <span class="muted">{basis}</span></p>'
+            f'<p class="best">{best_seen}</p>'
             f'<p class="range muted">low {rupees(window_min)} &middot; high {rupees(window_max)}</p>'
             f"</article>"
         )
     return "".join(cards)
 
 
-def recent_table(observations, limit: int = 12) -> str:
-    buckets = sorted({hour_bucket(t) for t, _ in observations}, reverse=True)[:limit]
+def recent_table(observations, limit: int = 12) -> tuple[str, bool]:
+    all_buckets = sorted({hour_bucket(t) for t, _ in observations})
+    buckets = list(reversed(all_buckets[-limit:]))
+    cheapest_by_bucket = {}
+    for bucket in all_buckets:
+        prices = [int(r["price"]) for t, r in observations
+                  if hour_bucket(t) == bucket and r["status"] == "OK" and r["price"].isdigit()]
+        cheapest_by_bucket[bucket] = min(prices, default=None)
+    has_errors = any(r["status"] == "ERROR" for bucket in buckets
+                     for t, r in observations if hour_bucket(t) == bucket)
     rows = []
     for bucket in buckets:
         batch = [r for t, r in observations if hour_bucket(t) == bucket]
@@ -213,18 +273,55 @@ def recent_table(observations, limit: int = 12) -> str:
         cheapest = min((int(r["price"]) for r in ok if r["price"].isdigit()), default=None)
         best = next((r for r in ok if r["price"].isdigit() and int(r["price"]) == cheapest), None)
         flight = html.escape(best["flight_number"] or best["airline"]) if best else "&mdash;"
-        note = html.escape(errors[0]["error"][:70]) if errors else ""
+        index = all_buckets.index(bucket)
+        previous = cheapest_by_bucket.get(all_buckets[index - 1]) if index else None
+        if cheapest is None or previous is None or cheapest == previous:
+            change = '<span class="delta flat">&mdash;</span>'
+        elif cheapest > previous:
+            change = f'<span class="delta up">&#9650; {rupees(cheapest - previous)}</span>'
+        else:
+            change = f'<span class="delta down">&#9660; {rupees(previous - cheapest)}</span>'
+        note = f'<td class="muted">{html.escape(errors[0]["error"][:70]) if errors else ""}</td>' if has_errors else ""
         rows.append(
-            f"<tr><td>{(bucket + IST):%d %b %H:%M}</td><td>{badge}</td>"
-            f"<td>{len(ok)}</td><td>{rupees(cheapest) if cheapest else '&mdash;'}</td>"
-            f'<td>{flight}</td><td class="muted">{note}</td></tr>'
+            f"<tr><td>{bucket:%d %b %H:%M}</td><td>{badge}</td>"
+            f"<td>{len(ok)}</td><td>{change}</td><td>{flight}</td>{note}</tr>"
         )
-    return "".join(rows) or '<tr><td colspan="6" class="muted">No runs recorded yet.</td></tr>'
+    colspan = 6 if has_errors else 5
+    return ("".join(rows) or f'<tr><td colspan="{colspan}" class="muted">No runs recorded yet.</td></tr>',
+            has_errors)
+
+
+def daily_summary(series) -> str:
+    daily = daily_series(series)
+    days = sorted({stamp.date() for points in daily.values() for stamp, _ in points})[-15:]
+    if len(days) < 2:
+        return '<p class="empty">Daily comparison appears after the first full day of tracking.</p>'
+    maps = {dep: {stamp.date(): price for stamp, price in daily.get(dep, [])} for dep in EXPECTED_DATES}
+    rows = []
+    for i, day in enumerate(days):
+        cells = []
+        for dep in EXPECTED_DATES:
+            price = maps[dep].get(day)
+            previous = maps[dep].get(days[i - 1]) if i else None
+            if price is None:
+                value = "&mdash;"
+            elif previous is None or price == previous:
+                value = f'{rupees(price)} <span class="delta flat">&mdash;</span>'
+            elif price > previous:
+                value = f'{rupees(price)} <span class="delta up">&#9650; {rupees(price - previous)}</span>'
+            else:
+                value = f'{rupees(price)} <span class="delta down">&#9660; {rupees(previous - price)}</span>'
+            cells.append(f"<td>{value}</td>")
+        rows.append(f'<tr><td>{day:%d %b}</td>{"".join(cells)}</tr>')
+    heads = "".join(f"<th>{d}</th>" for d in EXPECTED_DATES)
+    return f'<div class="scroll"><table><thead><tr><th>IST date</th>{heads}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>'
 
 
 def render_html(observations, now: datetime, repo: str) -> str:
     series = cheapest_series(observations)
+    daily = daily_series(series)
     strip, landed, failed = run_strip(observations, now)
+    run_rows, has_run_errors = recent_table(observations)
     latest = max((t for t, _ in observations), default=None)
     age_min = (now - latest).total_seconds() / 60 if latest else 1e9
 
@@ -242,6 +339,12 @@ def render_html(observations, now: datetime, repo: str) -> str:
         f'<span class="key"><i style="background:{SERIES_COLOURS[d]}"></i>{d}</span>'
         for d in EXPECTED_DATES
     )
+    runs_copy = (f"{landed} {'run' if landed == 1 else 'runs'}, " +
+                 (f"{failed} with errors." if failed else "all successful."))
+    note_head = "<th>Note</th>" if has_run_errors else ""
+    daily_days = {stamp.date() for points in daily.values() for stamp, _ in points}
+    daily_chart = (svg_chart(daily) if len(daily_days) >= 2 else
+                   '<p class="empty">Daily view appears after two days of data.</p>')
 
     return f"""<!doctype html>
 <html lang="en">
@@ -280,10 +383,14 @@ def render_html(observations, now: datetime, repo: str) -> str:
   .card {{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }}
   .card.stale {{ opacity:.6; }}
   .card h3 {{ margin:0 0 6px; font-size:13px; color:var(--muted); font-weight:600; }}
+  .days-out {{ margin:-4px 0 6px; color:var(--muted); font-size:12px; }}
   .price {{ margin:0; font-size:27px; font-weight:680; letter-spacing:-.02em; }}
   .delta {{ margin:6px 0 2px; font-size:13px; font-weight:600; }}
   .delta.up {{ color:var(--bad); }} .delta.down {{ color:var(--good); }} .delta.flat {{ color:var(--muted); }}
   .range {{ margin:0; font-size:12px; }}
+  .best {{ margin:7px 0 3px; font-size:12px; color:var(--muted); }}
+  .best-badge {{ display:inline-block; padding:2px 8px; border-radius:999px; color:var(--good);
+    border:1px solid var(--good); font-weight:600; }}
   .muted {{ color:var(--muted); font-weight:400; }}
   .panel {{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; }}
   svg {{ width:100%; height:auto; display:block; }}
@@ -293,10 +400,25 @@ def render_html(observations, now: datetime, repo: str) -> str:
   .legend {{ display:flex; gap:18px; flex-wrap:wrap; margin-top:12px; font-size:12px; color:var(--muted); }}
   .key {{ display:inline-flex; align-items:center; gap:7px; }}
   .key i {{ width:14px; height:3px; border-radius:2px; display:inline-block; }}
-  .strip {{ display:flex; gap:3px; flex-wrap:wrap; }}
-  .cell {{ width:12px; height:22px; border-radius:3px; background:var(--line); }}
-  .cell.good {{ background:var(--good); }} .cell.partial {{ background:var(--warn); }}
-  .cell.bad {{ background:var(--bad); }} .cell.future {{ background:transparent; border:1px dashed var(--line); }}
+  .chartbox {{ position:relative; }}
+  .chartbox input {{ position:absolute; opacity:0; }}
+  .chartbox label {{ display:inline-block; cursor:pointer; padding:5px 12px; margin:0 5px 12px 0;
+    border:1px solid var(--line); border-radius:7px; color:var(--muted); font-size:12px; font-weight:600; }}
+  #view-hourly:checked + label, #view-daily:checked + label {{ color:var(--accent); border-color:var(--accent); }}
+  .chartbox input:focus-visible + label {{ outline:2px solid var(--accent); outline-offset:2px; }}
+  .chart-daily {{ display:none; }}
+  #view-daily:checked ~ .chart-daily {{ display:block; }}
+  #view-daily:checked ~ .chart-hourly {{ display:none; }}
+  .chart-caption {{ margin:8px 0 0; color:var(--muted); font-size:12px; }}
+  .health-row {{ display:grid; grid-template-columns:52px minmax(288px,1fr); gap:9px; align-items:center; margin:4px 0; }}
+  .health-date {{ color:var(--muted); font-size:11px; }}
+  .health-cells {{ display:grid; grid-template-columns:repeat(24,minmax(7px,1fr)); gap:3px; }}
+  .cell {{ height:18px; border-radius:3px; background:var(--line); }}
+  .cell.ok {{ background:var(--good); }} .cell.partial {{ background:var(--warn); }}
+  .cell.error {{ background:var(--bad); }} .cell.not-due {{ background:transparent; border:1px dashed var(--line); }}
+  .cell.before {{ visibility:hidden; }}
+  .health-legend {{ display:flex; gap:14px; flex-wrap:wrap; margin:12px 0 0; color:var(--muted); font-size:11px; }}
+  .health-legend .cell {{ display:inline-block; width:11px; height:11px; margin-right:5px; vertical-align:-1px; }}
   .scroll {{ overflow-x:auto; }}
   table {{ width:100%; border-collapse:collapse; font-size:13.5px; min-width:620px; }}
   th {{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.06em;
@@ -309,6 +431,12 @@ def render_html(observations, now: datetime, repo: str) -> str:
   .empty {{ color:var(--muted); margin:0; padding:26px 0; text-align:center; }}
   footer {{ margin-top:34px; font-size:12px; color:var(--muted); }}
   a {{ color:var(--accent); }}
+  @media (max-width:480px) {{
+    body {{ padding:20px 12px 40px; }}
+    .panel {{ padding:13px; }}
+    .health-row {{ grid-template-columns:45px minmax(288px,1fr); }}
+    .health-grid {{ overflow-x:auto; }}
+  }}
 </style>
 </head>
 <body>
@@ -322,19 +450,34 @@ def render_html(observations, now: datetime, repo: str) -> str:
   </header>
 
   <h2>Cheapest fare by departure date</h2>
-  <div class="cards">{build_cards(series, observations)}</div>
+  <div class="cards">{build_cards(series, observations, now)}</div>
 
   <h2>Price movement</h2>
-  <div class="panel">
-    {svg_chart(series)}
+  <div class="panel chartbox">
+    <input type="radio" name="chartview" id="view-hourly" checked>
+    <label for="view-hourly">Hourly</label>
+    <input type="radio" name="chartview" id="view-daily">
+    <label for="view-daily">Daily</label>
+    <div class="chart chart-hourly">{svg_chart(series)}</div>
+    <div class="chart chart-daily">{daily_chart}
+      <p class="chart-caption">Daily view plots each day's lowest fare.</p>
+    </div>
     <div class="legend">{legend}</div>
   </div>
 
-  <h2>Hourly job health &middot; last {RUN_STRIP_HOURS} hours</h2>
+  <h2>Daily summary</h2>
+  <div class="panel">{daily_summary(series)}</div>
+
+  <h2>Collection health</h2>
   <div class="panel">
-    <div class="strip">{strip}</div>
+    <div class="health-grid">{strip}</div>
+    <div class="health-legend">
+      <span><i class="cell ok"></i>ok</span><span><i class="cell partial"></i>partial</span>
+      <span><i class="cell error"></i>error</span><span><i class="cell missed"></i>missed</span>
+      <span><i class="cell not-due"></i>not due</span>
+    </div>
     <p class="sub" style="margin:14px 0 0">
-      {landed} run(s) recorded, {failed} all-error. Hover a block for its timestamp.
+      {runs_copy} Hover a block for its timestamp.
       Gaps are normal: GitHub delays scheduled jobs by 5&ndash;20 minutes and occasionally skips one.
     </p>
   </div>
@@ -342,14 +485,14 @@ def render_html(observations, now: datetime, repo: str) -> str:
   <h2>Recent runs</h2>
   <div class="panel scroll">
     <table>
-      <thead><tr><th>Run (IST)</th><th>Status</th><th>Rows</th><th>Cheapest</th><th>Flight</th><th>Note</th></tr></thead>
-      <tbody>{recent_table(observations)}</tbody>
+      <thead><tr><th>Run (IST)</th><th>Status</th><th>Rows</th><th>Change</th><th>Flight</th>{note_head}</tr></thead>
+      <tbody>{run_rows}</tbody>
     </table>
   </div>
 
   <footer>
-    Generated {now:%Y-%m-%d %H:%M} UTC / {(now + IST):%H:%M} IST &middot;
-    {ok_rows} OK observations &middot;
+    Generated {now:%Y-%m-%d %H:%M} UTC / {now.astimezone(IST):%H:%M} IST &middot;
+    {ok_rows} fare checks &middot;
     <a href="https://github.com/{repo}">source</a> &middot;
     <a href="https://github.com/{repo}/blob/main/data/flight_prices.csv">raw CSV</a>.
     Page refreshes every 15 minutes; fares are what Google Flights displayed, not a booking quote.
