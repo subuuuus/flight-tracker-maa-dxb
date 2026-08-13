@@ -107,11 +107,12 @@ def google_flights_url(departure_date: str) -> str:
     return f"https://www.google.com/travel/flights?hl=en&curr={CURRENCY}&tfs={encoded}"
 
 
-def append_rows(rows: list[dict[str, object]]) -> None:
-    DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
-    needs_header = not DATA_FILE.exists() or DATA_FILE.stat().st_size == 0
+def append_rows(rows: list[dict[str, object]], csv_path: Path | None = None) -> None:
+    csv_path = DATA_FILE if csv_path is None else csv_path
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
+    needs_header = not csv_path.exists() or csv_path.stat().st_size == 0
     if not needs_header:
-        with DATA_FILE.open(encoding="utf-8-sig", newline="") as handle:
+        with csv_path.open(encoding="utf-8-sig", newline="") as handle:
             reader = csv.DictReader(handle)
             existing_fields = tuple(reader.fieldnames or ())
             existing_rows = list(reader)
@@ -119,12 +120,12 @@ def append_rows(rows: list[dict[str, object]]) -> None:
             unknown_fields = set(existing_fields) - set(CSV_FIELDS)
             if unknown_fields:
                 raise RuntimeError(f"CSV has unknown columns: {sorted(unknown_fields)}")
-            with DATA_FILE.open("w", newline="", encoding="utf-8-sig") as handle:
+            with csv_path.open("w", newline="", encoding="utf-8-sig") as handle:
                 writer = csv.DictWriter(handle, fieldnames=CSV_FIELDS)
                 writer.writeheader()
                 for existing in existing_rows:
                     writer.writerow({field: existing.get(field, "") for field in CSV_FIELDS})
-    with DATA_FILE.open("a", newline="", encoding="utf-8-sig") as handle:
+    with csv_path.open("a", newline="", encoding="utf-8-sig") as handle:
         writer = csv.DictWriter(handle, fieldnames=CSV_FIELDS)
         if needs_header:
             writer.writeheader()
@@ -272,7 +273,8 @@ def scrape_date(page, departure_date: str) -> list[dict[str, object]]:
     return rows
 
 
-def run_once(headless: bool = True) -> None:
+def run_once(headless: bool = True, csv_path: Path | None = None) -> None:
+    csv_path = DATA_FILE if csv_path is None else csv_path
     SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as playwright:
         channel = os.environ.get("PW_BROWSER_CHANNEL", "chrome") or None
@@ -284,11 +286,11 @@ def run_once(headless: bool = True) -> None:
             for departure_date in DEPARTURE_DATES:
                 try:
                     rows = scrape_date(page, departure_date)
-                    append_rows(rows)
+                    append_rows(rows, csv_path)
                     logging.info("%s: wrote %d OK row(s)", departure_date, len(rows))
                 except Exception as exc:  # A failed date must not crash the full run.
                     message = f"{type(exc).__name__}: {exc}"
-                    append_rows([error_row(departure_date, message)])
+                    append_rows([error_row(departure_date, message)], csv_path)
                     logging.exception("%s: %s", departure_date, message)
                     try:
                         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -303,10 +305,12 @@ def run_once(headless: bool = True) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--visible", action="store_true", help="Show Chrome instead of running headless")
+    parser.add_argument("--csv", type=Path, default=DATA_FILE, help="CSV output path; defaults to data/flight_prices.csv")
     parser.add_argument("--loop", action="store_true", help="Run hourly instead of once")
     parser.add_argument("--iterations", type=int, default=360, help="Loop runs; default 360 (15 days hourly)")
     parser.add_argument("--interval-seconds", type=int, default=3600, help="Seconds between loop starts")
     args = parser.parse_args()
+    csv_path = args.csv.resolve()
 
     if args.iterations < 1 or args.interval_seconds < 1:
         parser.error("iterations and interval-seconds must both be positive")
@@ -318,12 +322,12 @@ def main() -> None:
         started = time.monotonic()
         logging.info("Run %d/%d", run_number, runs)
         try:
-            run_once(headless=not args.visible)
+            run_once(headless=not args.visible, csv_path=csv_path)
         except Exception as exc:
             # Handles launch-level failures before individual dates can be visited.
             message = f"browser-level {type(exc).__name__}: {exc}"
             logging.exception(message)
-            append_rows([error_row(date, message) for date in DEPARTURE_DATES])
+            append_rows([error_row(date, message) for date in DEPARTURE_DATES], csv_path)
         if run_number < runs:
             elapsed = time.monotonic() - started
             time.sleep(max(1, args.interval_seconds - elapsed))

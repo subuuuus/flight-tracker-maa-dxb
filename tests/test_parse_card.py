@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -81,6 +84,37 @@ class ParseCardTests(unittest.TestCase):
         parsed = scraper.parse_card(fixture("real_emirates_round_trip_price_note.txt"))
 
         self.assertIsNone(parsed)
+
+    def test_csv_flag_routes_rows_to_override_and_default_remains_data_file(self):
+        row = scraper.error_row("2026-09-01", "synthetic")
+        default_path = ROOT / "data" / "flight_prices.csv"
+        with tempfile.TemporaryDirectory() as directory:
+            override = Path(directory) / "sandbox.csv"
+
+            def write_one_run(*, headless, csv_path):
+                self.assertTrue(headless)
+                scraper.append_rows([row], csv_path)
+
+            with (
+                patch.object(scraper, "DATA_FILE", default_path),
+                patch.object(scraper, "configure_logging"),
+                patch.object(scraper, "run_once", side_effect=write_one_run),
+                patch.object(sys, "argv", ["scraper", "--csv", str(override)]),
+            ):
+                scraper.main()
+
+            self.assertTrue(override.exists())
+            self.assertIn("synthetic", override.read_text(encoding="utf-8-sig"))
+
+            with (
+                patch.object(scraper, "DATA_FILE", default_path),
+                patch.object(scraper, "configure_logging"),
+                patch.object(scraper, "run_once") as run_once,
+                patch.object(sys, "argv", ["scraper"]),
+            ):
+                scraper.main()
+
+            self.assertEqual(default_path, run_once.call_args.kwargs["csv_path"])
 
 
 if __name__ == "__main__":
