@@ -1,0 +1,89 @@
+name: flight-tracker
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # required: new repos default GITHUB_TOKEN to read-only
+  actions: write    # required: self-disable at end of window
+
+concurrency:
+  group: flight-tracker
+  cancel-in-progress: false
+
+env:
+  END_DATE: '2026-08-28'
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check collection window
+        id: window
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          today=$(date -u +%F)
+          if [[ "$today" > "$END_DATE" ]]; then
+            echo "Window ended $END_DATE — disabling workflow."
+            gh workflow disable flight-tracker.yml --repo "$GITHUB_REPOSITORY"
+            echo "active=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "active=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.window.outputs.active == 'true'
+
+      - uses: actions/setup-python@v5
+        if: steps.window.outputs.active == 'true'
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        if: steps.window.outputs.active == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chrome
+
+      - name: Scrape
+        if: steps.window.outputs.active == 'true'
+        run: python src/scrape_google_flights.py
+
+      - name: Summarise this run
+        if: steps.window.outputs.active == 'true'
+        run: |
+          ok=$(tail -n 20 data/flight_prices.csv | grep -c ',OK,' || true)
+          err=$(tail -n 20 data/flight_prices.csv | grep -c ',ERROR,' || true)
+          echo "OK rows: $ok / ERROR rows: $err" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit CSV
+        if: steps.window.outputs.active == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/flight_prices.csv
+          if git diff --cached --quiet; then
+            echo "No new rows."; exit 0
+          fi
+          git commit -m "data: fares $(date -u +'%Y-%m-%dT%H:%MZ')"
+          for attempt in 1 2 3; do
+            if git pull --rebase --autostash origin main && git push origin main; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Push failed after 3 attempts"; exit 1
+
+      - name: Upload diagnostics on failure
+        if: always() && steps.window.outputs.active == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostics-${{ github.run_id }}
+          path: logs/
+          retention-days: 7
+          if-no-files-found: ignore

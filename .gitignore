@@ -1,0 +1,14 @@
+logs/
+__pycache__/
+*.pyc
+*.png
+HERMES_BRIEF.md
+.venv/
+.hermes/
+.env
+.env.*
+*.pem
+*.key
+*credentials*
+*cookies*
+*auth_state*
