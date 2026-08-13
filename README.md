@@ -4,7 +4,7 @@ Hourly Google Flights fare tracker for MAA -> DXB, run entirely on GitHub Action
 
 <!-- DASHBOARD:START -->
 
-### MAA → DXB &middot; nonstop economy &middot; status: **live (31 min since last run)**
+### MAA → DXB &middot; nonstop economy &middot; status: **live (0 min since last run)**
 
 [**Open the dashboard**](https://subuuuus.github.io/flight-tracker-maa-dxb/) &middot; hourly samples of the cheapest displayed fare for 01-Sep-26&ndash;03-Sep-26.
 
@@ -14,7 +14,7 @@ Hourly Google Flights fare tracker for MAA -> DXB, run entirely on GitHub Action
 | 02-Sep-26 | **₹37,289** | no change | ₹37,289 | ₹37,289 |
 | 03-Sep-26 | **₹34,507** | no change | ₹34,507 | ₹34,507 |
 
-_Updated 13-Aug-26 21:32 UTC by the hourly workflow. Figures are displayed fares, not booking quotes._
+_Updated 13-Aug-26 22:02 UTC by the hourly workflow. Figures are displayed fares, not booking quotes._
 
 <!-- DASHBOARD:END -->
 
