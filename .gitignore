@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 *.png
 HERMES_BRIEF.md
+HERMES_DAILY_AUDIT.md
 .venv/
 .hermes/
 .env

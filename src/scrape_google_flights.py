@@ -231,10 +231,15 @@ def scrape_date(page, departure_date: str) -> list[dict[str, object]]:
             if details_buttons.count() >= 2:
                 try:
                     details_buttons.nth(1).click(timeout=5_000)
-                    apply_flight_number(
-                        flight,
-                        extract_flight_number(card.inner_text(), str(flight["airline"])),
-                    )
+                    flight_number = ""
+                    # The expand panel renders asynchronously after the click;
+                    # poll briefly instead of reading inner_text on the same tick.
+                    for _ in range(6):
+                        flight_number = extract_flight_number(card.inner_text(), str(flight["airline"]))
+                        if flight_number:
+                            break
+                        page.wait_for_timeout(300)
+                    apply_flight_number(flight, flight_number)
                     card.locator("button").nth(1).click(timeout=5_000)
                 except Exception:
                     logging.warning("Could not expand flight details for %s", original_key)

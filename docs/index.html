@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="900">
+<title>MAA -> DXB fare tracker</title>
+<style>
+  :root {
+    --bg:#f6f7f9; --panel:#ffffff; --ink:#12151a; --muted:#5b6572; --line:#e3e7ec;
+    --good:#0f8a4b; --warn:#b06f00; --bad:#c0392b; --accent:#2563eb;
+    --s1:#2563eb; --s2:#d97706; --s3:#0f8a4b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#0f1216; --panel:#171b21; --ink:#e8ecf1; --muted:#98a2b0; --line:#262c35;
+      --good:#3ddc84; --warn:#f0b429; --bad:#ff6b5e; --accent:#5b9dff;
+      --s1:#5b9dff; --s2:#f0b429; --s3:#3ddc84;
+    }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:28px 20px 60px; background:var(--bg); color:var(--ink);
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  .wrap { max-width:980px; margin:0 auto; }
+  header { display:flex; flex-wrap:wrap; gap:12px; align-items:baseline; justify-content:space-between; }
+  h1 { font-size:22px; margin:0; letter-spacing:-.01em; }
+  h2 { font-size:14px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);
+    margin:34px 0 12px; font-weight:600; }
+  .sub { color:var(--muted); font-size:13px; }
+  .status { display:inline-flex; align-items:center; gap:8px; padding:7px 14px; border-radius:999px;
+    font-weight:600; font-size:13px; border:1px solid var(--line); background:var(--panel); }
+  .status::before { content:""; width:9px; height:9px; border-radius:50%; background:currentColor; }
+  .status.good { color:var(--good); } .status.warn { color:var(--warn); } .status.bad { color:var(--bad); }
+  .cards { display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); margin-top:18px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+  .card.stale { opacity:.6; }
+  .card h3 { margin:0 0 6px; font-size:13px; color:var(--muted); font-weight:600; }
+  .price { margin:0; font-size:27px; font-weight:680; letter-spacing:-.02em; }
+  .delta { margin:6px 0 2px; font-size:13px; font-weight:600; }
+  .delta.up { color:var(--bad); } .delta.down { color:var(--good); } .delta.flat { color:var(--muted); }
+  .range { margin:0; font-size:12px; }
+  .muted { color:var(--muted); font-weight:400; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; }
+  svg { width:100%; height:auto; display:block; }
+  .grid { stroke:var(--line); stroke-width:1; }
+  .tick { fill:var(--muted); font-size:11px; }
+  .line { fill:none; stroke-width:2.2; stroke-linejoin:round; stroke-linecap:round; }
+  .legend { display:flex; gap:18px; flex-wrap:wrap; margin-top:12px; font-size:12px; color:var(--muted); }
+  .key { display:inline-flex; align-items:center; gap:7px; }
+  .key i { width:14px; height:3px; border-radius:2px; display:inline-block; }
+  .strip { display:flex; gap:3px; flex-wrap:wrap; }
+  .cell { width:12px; height:22px; border-radius:3px; background:var(--line); }
+  .cell.good { background:var(--good); } .cell.partial { background:var(--warn); }
+  .cell.bad { background:var(--bad); } .cell.future { background:transparent; border:1px dashed var(--line); }
+  .scroll { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; min-width:620px; }
+  th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--muted); padding:0 10px 8px 0; }
+  td { padding:9px 10px 9px 0; border-top:1px solid var(--line); }
+  .pill { font-size:11px; padding:2px 9px; border-radius:999px; font-weight:600; }
+  .pill.good { background:color-mix(in srgb,var(--good) 16%,transparent); color:var(--good); }
+  .pill.partial { background:color-mix(in srgb,var(--warn) 18%,transparent); color:var(--warn); }
+  .pill.bad { background:color-mix(in srgb,var(--bad) 16%,transparent); color:var(--bad); }
+  .empty { color:var(--muted); margin:0; padding:26px 0; text-align:center; }
+  footer { margin-top:34px; font-size:12px; color:var(--muted); }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>MAA -> DXB &middot; nonstop economy</h1>
+      <p class="sub">Cheapest displayed fares for 1&ndash;3 September 2026, sampled hourly by GitHub Actions.</p>
+    </div>
+    <span class="status good">Live &mdash; updated 60 min ago</span>
+  </header>
+
+  <h2>Cheapest fare by departure date</h2>
+  <div class="cards"><article class="card"><h3>2026-09-01</h3><p class="price">₹40,334</p><p class="delta flat">no change <span class="muted">since tracking began</span></p><p class="range muted">low ₹40,334 &middot; high ₹40,334</p></article><article class="card"><h3>2026-09-02</h3><p class="price">₹37,289</p><p class="delta flat">no change <span class="muted">since tracking began</span></p><p class="range muted">low ₹37,289 &middot; high ₹37,289</p></article><article class="card"><h3>2026-09-03</h3><p class="price">₹34,507</p><p class="delta flat">no change <span class="muted">since tracking began</span></p><p class="range muted">low ₹34,507 &middot; high ₹34,507</p></article></div>
+
+  <h2>Price movement</h2>
+  <div class="panel">
+    <svg viewBox="0 0 920 340" role="img" aria-label="Cheapest nonstop economy fare over time" preserveAspectRatio="xMidYMid meet"><line class="grid" x1="74" y1="18.0" x2="902" y2="18.0"/><text class="tick" x="64" y="22.0" text-anchor="end">₹40,625</text><line class="grid" x1="74" y1="88.5" x2="902" y2="88.5"/><text class="tick" x="64" y="92.5" text-anchor="end">₹39,023</text><line class="grid" x1="74" y1="159.0" x2="902" y2="159.0"/><text class="tick" x="64" y="163.0" text-anchor="end">₹37,420</text><line class="grid" x1="74" y1="229.5" x2="902" y2="229.5"/><text class="tick" x="64" y="233.5" text-anchor="end">₹35,818</text><line class="grid" x1="74" y1="300.0" x2="902" y2="300.0"/><text class="tick" x="64" y="304.0" text-anchor="end">₹34,216</text><text class="tick" x="74.0" y="322" text-anchor="middle">13 Aug 15:30</text><text class="tick" x="281.0" y="322" text-anchor="middle">13 Aug 16:00</text><text class="tick" x="488.0" y="322" text-anchor="middle">13 Aug 16:30</text><text class="tick" x="695.0" y="322" text-anchor="middle">13 Aug 17:00</text><text class="tick" x="902.0" y="322" text-anchor="middle">13 Aug 17:30</text><polyline class="line" points="74.0,30.8 902.0,30.8" style="stroke:var(--s1)"/><circle cx="902.0" cy="30.8" r="4.5" style="fill:var(--s1)"/><polyline class="line" points="74.0,164.8 902.0,164.8" style="stroke:var(--s2)"/><circle cx="902.0" cy="164.8" r="4.5" style="fill:var(--s2)"/><polyline class="line" points="74.0,287.2 902.0,287.2" style="stroke:var(--s3)"/><circle cx="902.0" cy="287.2" r="4.5" style="fill:var(--s3)"/></svg>
+    <div class="legend"><span class="key"><i style="background:var(--s1)"></i>2026-09-01</span><span class="key"><i style="background:var(--s2)"></i>2026-09-02</span><span class="key"><i style="background:var(--s3)"></i>2026-09-03</span></div>
+  </div>
+
+  <h2>Hourly job health &middot; last 72 hours</h2>
+  <div class="panel">
+    <div class="strip"><span class="cell missing" title="10 Aug 19:30 IST - no run recorded"></span><span class="cell missing" title="10 Aug 20:30 IST - no run recorded"></span><span class="cell missing" title="10 Aug 21:30 IST - no run recorded"></span><span class="cell missing" title="10 Aug 22:30 IST - no run recorded"></span><span class="cell missing" title="10 Aug 23:30 IST - no run recorded"></span><span class="cell missing" title="11 Aug 00:30 IST - no run recorded"></span><span class="cell missing" title="11 Aug 01:30 IST - no run recorded"></span><span class="cell missing" title="11 Aug 02:30 IST - no run recorded"></span><span class="cell missing" title="11 Aug 03:30 IST - no run recorded"></span><span class="cell missing" title="11 Aug 04:30 IST - no run recorded"></span><span class="cell missing" title="11 Aug 05:30 IST - no run recorded"></span><span class="cell missing" title="11 Aug 06:30 IST - no run recorded"></span><span class="cell missing" title="11 Aug 07:30 IST - no run recorded"></span><span class="cell missing" title="11 Aug 08:30 IST - no run recorded"></span><span class="cell missing" title="11 Aug 09:30 IST - no run recorded"></span><span class="cell missing" title="11 Aug 10:30 IST - no run recorded"></span><span class="cell missing" title="11 Aug 11:30 IST - no run recorded"></span><span class="cell missing" title="11 Aug 12:30 IST - no run recorded"></span><span class="cell missing" title="11 Aug 13:30 IST - no run recorded"></span><span class="cell missing" title="11 Aug 14:30 IST - no run recorded"></span><span class="cell missing" title="11 Aug 15:30 IST - no run recorded"></span><span class="cell missing" title="11 Aug 16:30 IST - no run recorded"></span><span class="cell missing" title="11 Aug 17:30 IST - no run recorded"></span><span class="cell missing" title="11 Aug 18:30 IST - no run recorded"></span><span class="cell missing" title="11 Aug 19:30 IST - no run recorded"></span><span class="cell missing" title="11 Aug 20:30 IST - no run recorded"></span><span class="cell missing" title="11 Aug 21:30 IST - no run recorded"></span><span class="cell missing" title="11 Aug 22:30 IST - no run recorded"></span><span class="cell missing" title="11 Aug 23:30 IST - no run recorded"></span><span class="cell missing" title="12 Aug 00:30 IST - no run recorded"></span><span class="cell missing" title="12 Aug 01:30 IST - no run recorded"></span><span class="cell missing" title="12 Aug 02:30 IST - no run recorded"></span><span class="cell missing" title="12 Aug 03:30 IST - no run recorded"></span><span class="cell missing" title="12 Aug 04:30 IST - no run recorded"></span><span class="cell missing" title="12 Aug 05:30 IST - no run recorded"></span><span class="cell missing" title="12 Aug 06:30 IST - no run recorded"></span><span class="cell missing" title="12 Aug 07:30 IST - no run recorded"></span><span class="cell missing" title="12 Aug 08:30 IST - no run recorded"></span><span class="cell missing" title="12 Aug 09:30 IST - no run recorded"></span><span class="cell missing" title="12 Aug 10:30 IST - no run recorded"></span><span class="cell missing" title="12 Aug 11:30 IST - no run recorded"></span><span class="cell missing" title="12 Aug 12:30 IST - no run recorded"></span><span class="cell missing" title="12 Aug 13:30 IST - no run recorded"></span><span class="cell missing" title="12 Aug 14:30 IST - no run recorded"></span><span class="cell missing" title="12 Aug 15:30 IST - no run recorded"></span><span class="cell missing" title="12 Aug 16:30 IST - no run recorded"></span><span class="cell missing" title="12 Aug 17:30 IST - no run recorded"></span><span class="cell missing" title="12 Aug 18:30 IST - no run recorded"></span><span class="cell missing" title="12 Aug 19:30 IST - no run recorded"></span><span class="cell missing" title="12 Aug 20:30 IST - no run recorded"></span><span class="cell missing" title="12 Aug 21:30 IST - no run recorded"></span><span class="cell missing" title="12 Aug 22:30 IST - no run recorded"></span><span class="cell missing" title="12 Aug 23:30 IST - no run recorded"></span><span class="cell missing" title="13 Aug 00:30 IST - no run recorded"></span><span class="cell missing" title="13 Aug 01:30 IST - no run recorded"></span><span class="cell missing" title="13 Aug 02:30 IST - no run recorded"></span><span class="cell missing" title="13 Aug 03:30 IST - no run recorded"></span><span class="cell missing" title="13 Aug 04:30 IST - no run recorded"></span><span class="cell missing" title="13 Aug 05:30 IST - no run recorded"></span><span class="cell missing" title="13 Aug 06:30 IST - no run recorded"></span><span class="cell missing" title="13 Aug 07:30 IST - no run recorded"></span><span class="cell missing" title="13 Aug 08:30 IST - no run recorded"></span><span class="cell missing" title="13 Aug 09:30 IST - no run recorded"></span><span class="cell missing" title="13 Aug 10:30 IST - no run recorded"></span><span class="cell missing" title="13 Aug 11:30 IST - no run recorded"></span><span class="cell missing" title="13 Aug 12:30 IST - no run recorded"></span><span class="cell missing" title="13 Aug 13:30 IST - no run recorded"></span><span class="cell missing" title="13 Aug 14:30 IST - no run recorded"></span><span class="cell good" title="13 Aug 15:30 IST - 18 rows OK"></span><span class="cell missing" title="13 Aug 16:30 IST - no run recorded"></span><span class="cell good" title="13 Aug 17:30 IST - 6 rows OK"></span><span class="cell missing" title="13 Aug 18:30 IST - no run recorded"></span></div>
+    <p class="sub" style="margin:14px 0 0">
+      2 run(s) recorded, 0 all-error. Hover a block for its timestamp.
+      Gaps are normal: GitHub delays scheduled jobs by 5&ndash;20 minutes and occasionally skips one.
+    </p>
+  </div>
+
+  <h2>Recent runs</h2>
+  <div class="panel scroll">
+    <table>
+      <thead><tr><th>Run (IST)</th><th>Status</th><th>Rows</th><th>Cheapest</th><th>Flight</th><th>Note</th></tr></thead>
+      <tbody><tr><td>13 Aug 17:30</td><td><span class="pill good">ok</span></td><td>6</td><td>₹34,507</td><td>6E 1471</td><td class="muted"></td></tr><tr><td>13 Aug 15:30</td><td><span class="pill good">ok</span></td><td>18</td><td>₹34,507</td><td>IndiGo</td><td class="muted"></td></tr></tbody>
+    </table>
+  </div>
+
+  <footer>
+    Generated 2026-08-13 13:22 UTC / 18:52 IST &middot;
+    24 OK observations &middot;
+    <a href="https://github.com/subuuuus/flight-tracker-maa-dxb">source</a> &middot;
+    <a href="https://github.com/subuuuus/flight-tracker-maa-dxb/blob/main/data/flight_prices.csv">raw CSV</a>.
+    Page refreshes every 15 minutes; fares are what Google Flights displayed, not a booking quote.
+  </footer>
+</div>
+</body>
+</html>
