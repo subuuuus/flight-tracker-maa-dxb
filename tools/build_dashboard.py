@@ -102,10 +102,11 @@ def flight_fingerprint(row: dict[str, str]) -> tuple[str, str, str, str, str]:
 
 def unique_flight_counts(observations) -> dict[str, int]:
     """Count physical OK flight options, merging legacy and enriched rows."""
-    numbers_by_fingerprint: dict[tuple[str, str, str, str, str], set[str]] = defaultdict(set)
+    numbers_by_date_and_fingerprint: dict[tuple[str, tuple[str, str, str, str, str]], set[str]] = defaultdict(set)
     for _, row in observations:
         if row["status"] == "OK" and row.get("flight_number", "").strip():
-            numbers_by_fingerprint[flight_fingerprint(row)].add(row["flight_number"].strip())
+            key = (row["departure_date"], flight_fingerprint(row))
+            numbers_by_date_and_fingerprint[key].add(row["flight_number"].strip())
 
     identities: dict[str, set[tuple[str, ...]]] = defaultdict(set)
     for _, row in observations:
@@ -113,7 +114,7 @@ def unique_flight_counts(observations) -> dict[str, int]:
             continue
         fingerprint = flight_fingerprint(row)
         number = row.get("flight_number", "").strip()
-        known_numbers = numbers_by_fingerprint[fingerprint]
+        known_numbers = numbers_by_date_and_fingerprint[(row["departure_date"], fingerprint)]
         if number:
             identity = ("number", number)
         elif len(known_numbers) == 1:
@@ -139,7 +140,7 @@ def daily_series(hourly: dict[str, list[tuple[datetime, int]]]) -> dict[str, lis
 def svg_chart(series: dict[str, list[tuple[datetime, int]]], width: int = 920, height: int = 340,
               empty_message: str | None = None) -> str:
     points = [(t, p) for pts in series.values() for t, p in pts]
-    if len(points) < 2:
+    if len({t for t, _ in points}) < 2:
         message = empty_message or ('Not enough observations yet to plot a trend. '
                                     'The chart appears once two hourly runs have completed.')
         return f'<p class="empty">{message}</p>'
@@ -214,7 +215,8 @@ def run_strip(observations, now: datetime) -> tuple[str, int, int]:
             if bucket < first:
                 state, title = "before", f"{label} - tracking not started"
             elif statuses and "ERROR" in statuses and "OK" in statuses:
-                state, title, landed = "partial", f"{label} - partial ({statuses.count('OK')} ok)", landed + 1
+                state, title = "partial", f"{label} - partial ({statuses.count('OK')} ok)"
+                landed, failed = landed + 1, failed + 1
             elif statuses and "ERROR" in statuses:
                 state, title, landed, failed = "error", f"{label} - all rows ERROR", landed + 1, failed + 1
             elif statuses:
@@ -275,7 +277,7 @@ def build_cards(series, observations, now: datetime) -> str:
         if current == window_min:
             best_seen = '<span class="best-badge">lowest so far</span>'
         else:
-            best_seen = f'<span class="best-seen">lowest yet {rupees(window_min)} &middot; {duration_text(stamp - low_stamp)} ago</span>'
+            best_seen = f'<span class="best-seen">lowest yet {rupees(window_min)} &middot; {duration_text(now - low_stamp)} ago</span>'
         days_out = (datetime.fromisoformat(dep_date).date() - today).days
         flight_count = counts[dep_date]
         flight_copy = f"{flight_count} {'flight' if flight_count == 1 else 'flights'}"
@@ -340,9 +342,13 @@ def recent_table(observations, limit: int = 12) -> tuple[str, bool]:
 
 def daily_summary(series) -> str:
     daily = daily_series(series)
-    days = sorted({stamp.date() for points in daily.values() for stamp, _ in points})[-15:]
-    if len(days) < 2:
+    observed_days = sorted({stamp.date() for points in daily.values() for stamp, _ in points})
+    if len(observed_days) < 2:
         return '<p class="empty">Daily comparison appears after the first full day of tracking.</p>'
+    last_day = observed_days[-1]
+    first_day = max(observed_days[0], last_day - timedelta(days=14))
+    days = [first_day + timedelta(days=offset)
+            for offset in range((last_day - first_day).days + 1)]
     maps = {dep: {stamp.date(): price for stamp, price in daily.get(dep, [])} for dep in EXPECTED_DATES}
     rows = []
     for i, day in enumerate(days):
@@ -458,8 +464,8 @@ def render_html(observations, now: datetime, repo: str) -> str:
   #view-daily:checked ~ .chart-daily {{ display:block; }}
   #view-daily:checked ~ .chart-hourly {{ display:none; }}
   .chart-caption {{ margin:8px 0 0; color:var(--muted); font-size:12px; }}
-  .health-row {{ display:grid; grid-template-columns:52px minmax(288px,1fr); gap:9px; align-items:center; margin:4px 0; }}
-  .health-date {{ color:var(--muted); font-size:11px; }}
+  .health-row {{ display:grid; grid-template-columns:72px minmax(288px,1fr); gap:9px; align-items:center; margin:4px 0; }}
+  .health-date {{ color:var(--muted); font-size:11px; white-space:nowrap; }}
   .health-cells {{ display:grid; grid-template-columns:repeat(24,minmax(7px,1fr)); gap:3px; }}
   .cell {{ height:18px; border-radius:3px; background:var(--line); }}
   .cell.ok {{ background:var(--good); }} .cell.partial {{ background:var(--warn); }}
@@ -482,7 +488,7 @@ def render_html(observations, now: datetime, repo: str) -> str:
   @media (max-width:480px) {{
     body {{ padding:20px 12px 40px; }}
     .panel {{ padding:13px; }}
-    .health-row {{ grid-template-columns:45px minmax(288px,1fr); }}
+    .health-row {{ grid-template-columns:72px minmax(288px,1fr); }}
     .health-grid {{ overflow-x:auto; }}
   }}
 </style>

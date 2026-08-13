@@ -63,8 +63,8 @@
   #view-daily:checked ~ .chart-daily { display:block; }
   #view-daily:checked ~ .chart-hourly { display:none; }
   .chart-caption { margin:8px 0 0; color:var(--muted); font-size:12px; }
-  .health-row { display:grid; grid-template-columns:52px minmax(288px,1fr); gap:9px; align-items:center; margin:4px 0; }
-  .health-date { color:var(--muted); font-size:11px; }
+  .health-row { display:grid; grid-template-columns:72px minmax(288px,1fr); gap:9px; align-items:center; margin:4px 0; }
+  .health-date { color:var(--muted); font-size:11px; white-space:nowrap; }
   .health-cells { display:grid; grid-template-columns:repeat(24,minmax(7px,1fr)); gap:3px; }
   .cell { height:18px; border-radius:3px; background:var(--line); }
   .cell.ok { background:var(--good); } .cell.partial { background:var(--warn); }
@@ -87,7 +87,7 @@
   @media (max-width:480px) {
     body { padding:20px 12px 40px; }
     .panel { padding:13px; }
-    .health-row { grid-template-columns:45px minmax(288px,1fr); }
+    .health-row { grid-template-columns:72px minmax(288px,1fr); }
     .health-grid { overflow-x:auto; }
   }
 </style>
@@ -99,7 +99,7 @@
       <h1>MAA → DXB &middot; nonstop economy</h1>
       <p class="sub">Cheapest displayed fares for 01-Sep-26&ndash;03-Sep-26, sampled hourly by GitHub Actions.</p>
     </div>
-    <span class="status good">Live &mdash; updated 0 min ago</span>
+    <span class="status good">Live &mdash; updated 31 min ago</span>
   </header>
 
   <h2>Cheapest fare by departure date</h2>
@@ -144,7 +144,7 @@
   </div>
 
   <footer>
-    Generated 13-Aug-26 21:01 UTC / 02:31 IST &middot;
+    Generated 13-Aug-26 21:32 UTC / 03:02 IST &middot;
     66 fare checks &middot;
     <a href="https://github.com/subuuuus/flight-tracker-maa-dxb">source</a> &middot;
     <a href="https://github.com/subuuuus/flight-tracker-maa-dxb/blob/main/data/flight_prices.csv">raw CSV</a>.
