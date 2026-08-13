@@ -16,7 +16,7 @@ import argparse
 import csv
 import html
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
@@ -52,6 +52,18 @@ def hour_bucket(stamp: datetime) -> datetime:
     return stamp.astimezone(IST).replace(minute=0, second=0, microsecond=0)
 
 
+def display_date(value: str | date | datetime) -> str:
+    """Format a date for dashboard display as dd-mmm-yy."""
+    if isinstance(value, str):
+        value = date.fromisoformat(value)
+    return value.strftime("%d-%b-%y")
+
+
+def display_datetime(stamp: datetime) -> str:
+    """Format an IST date-time label for dashboard display."""
+    return f"{display_date(stamp)} {stamp:%H:%M}"
+
+
 def rupees(value: float) -> str:
     return f"₹{int(round(value)):,}"
 
@@ -80,6 +92,36 @@ def cheapest_series(observations) -> dict[str, list[tuple[datetime, int]]]:
     for (dep_date, bucket), price in sorted(grouped.items(), key=lambda kv: kv[0][1]):
         series[dep_date].append((bucket, price))
     return series
+
+
+def flight_fingerprint(row: dict[str, str]) -> tuple[str, str, str, str, str]:
+    """Stable fallback identity for a flight before its number is enriched."""
+    return tuple(row.get(field, "").strip().casefold() for field in
+                 ("airline", "departure_time", "arrival_time", "stops", "cabin"))
+
+
+def unique_flight_counts(observations) -> dict[str, int]:
+    """Count physical OK flight options, merging legacy and enriched rows."""
+    numbers_by_fingerprint: dict[tuple[str, str, str, str, str], set[str]] = defaultdict(set)
+    for _, row in observations:
+        if row["status"] == "OK" and row.get("flight_number", "").strip():
+            numbers_by_fingerprint[flight_fingerprint(row)].add(row["flight_number"].strip())
+
+    identities: dict[str, set[tuple[str, ...]]] = defaultdict(set)
+    for _, row in observations:
+        if row["status"] != "OK":
+            continue
+        fingerprint = flight_fingerprint(row)
+        number = row.get("flight_number", "").strip()
+        known_numbers = numbers_by_fingerprint[fingerprint]
+        if number:
+            identity = ("number", number)
+        elif len(known_numbers) == 1:
+            identity = ("number", next(iter(known_numbers)))
+        else:
+            identity = ("fallback", *fingerprint)
+        identities[row["departure_date"]].add(identity)
+    return {dep_date: len(identities[dep_date]) for dep_date in EXPECTED_DATES}
 
 
 def daily_series(hourly: dict[str, list[tuple[datetime, int]]]) -> dict[str, list[tuple[datetime, int]]]:
@@ -131,7 +173,7 @@ def svg_chart(series: dict[str, list[tuple[datetime, int]]], width: int = 920, h
     for i in range(ticks + 1):
         stamp = t_min + timedelta(seconds=span * i / ticks)
         x = x_of(stamp)
-        label = stamp.strftime("%d %b") if span > 48 * 3600 else stamp.strftime("%d %b %H:%M")
+        label = display_date(stamp) if span > 48 * 3600 else display_datetime(stamp)
         parts.append(f'<text class="tick" x="{x:.1f}" y="{height - pad_b + 22}" text-anchor="middle">{label}</text>')
 
     for dep_date in EXPECTED_DATES:
@@ -168,7 +210,7 @@ def run_strip(observations, now: datetime) -> tuple[str, int, int]:
         for hour in range(24):
             bucket = day.replace(hour=hour)
             statuses = by_bucket.get(bucket)
-            label = bucket.strftime("%d %b %H:%M IST")
+            label = f"{display_datetime(bucket)} IST"
             if bucket < first:
                 state, title = "before", f"{label} - tracking not started"
             elif statuses and "ERROR" in statuses and "OK" in statuses:
@@ -182,7 +224,7 @@ def run_strip(observations, now: datetime) -> tuple[str, int, int]:
             else:
                 state, title = "missed", f"{label} - no run recorded"
             cells.append(f'<span class="cell {state}" title="{html.escape(title)}"></span>')
-        rows.append(f'<div class="health-row"><span class="health-date">{day:%d %b}</span>'
+        rows.append(f'<div class="health-row"><span class="health-date">{display_date(day)}</span>'
                     f'<div class="health-cells">{"".join(cells)}</div></div>')
         day += timedelta(days=1)
     return "".join(rows), landed, failed
@@ -196,11 +238,13 @@ def duration_text(delta: timedelta) -> str:
 def build_cards(series, observations, now: datetime) -> str:
     latest_bucket = max((hour_bucket(t) for t, _ in observations), default=None)
     today = now.astimezone(IST).date()
+    counts = unique_flight_counts(observations)
     cards = []
     for dep_date in EXPECTED_DATES:
         pts = series.get(dep_date, [])
         if not pts:
-            cards.append(f'<article class="card"><h3>{dep_date}</h3>'
+            cards.append(f'<article class="card"><h3>{display_date(dep_date)}</h3>'
+                         f'<p class="flight-count">0 flights</p>'
                          f'<p class="price muted">no data</p></article>')
             continue
 
@@ -233,11 +277,14 @@ def build_cards(series, observations, now: datetime) -> str:
         else:
             best_seen = f'<span class="best-seen">lowest yet {rupees(window_min)} &middot; {duration_text(stamp - low_stamp)} ago</span>'
         days_out = (datetime.fromisoformat(dep_date).date() - today).days
+        flight_count = counts[dep_date]
+        flight_copy = f"{flight_count} {'flight' if flight_count == 1 else 'flights'}"
 
         stale = " stale" if latest_bucket and stamp < latest_bucket else ""
         cards.append(
             f'<article class="card{stale}">'
-            f'<h3>{dep_date}</h3>'
+            f'<h3>{display_date(dep_date)}</h3>'
+            f'<p class="flight-count">{flight_copy}</p>'
             f'<p class="days-out">{days_out} days out</p>'
             f'<p class="price">{rupees(current)}</p>'
             f'<p class="delta {trend}">{change} <span class="muted">{basis}</span></p>'
@@ -283,7 +330,7 @@ def recent_table(observations, limit: int = 12) -> tuple[str, bool]:
             change = f'<span class="delta down">&#9660; {rupees(previous - cheapest)}</span>'
         note = f'<td class="muted">{html.escape(errors[0]["error"][:70]) if errors else ""}</td>' if has_errors else ""
         rows.append(
-            f"<tr><td>{bucket:%d %b %H:%M}</td><td>{badge}</td>"
+            f"<tr><td>{display_datetime(bucket)}</td><td>{badge}</td>"
             f"<td>{len(ok)}</td><td>{change}</td><td>{flight}</td>{note}</tr>"
         )
     colspan = 6 if has_errors else 5
@@ -312,8 +359,8 @@ def daily_summary(series) -> str:
             else:
                 value = f'{rupees(price)} <span class="delta down">&#9660; {rupees(previous - price)}</span>'
             cells.append(f"<td>{value}</td>")
-        rows.append(f'<tr><td>{day:%d %b}</td>{"".join(cells)}</tr>')
-    heads = "".join(f"<th>{d}</th>" for d in EXPECTED_DATES)
+        rows.append(f'<tr><td>{display_date(day)}</td>{"".join(cells)}</tr>')
+    heads = "".join(f"<th>{display_date(d)}</th>" for d in EXPECTED_DATES)
     return f'<div class="scroll"><table><thead><tr><th>IST date</th>{heads}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>'
 
 
@@ -336,7 +383,7 @@ def render_html(observations, now: datetime, repo: str) -> str:
 
     ok_rows = sum(1 for _, r in observations if r["status"] == "OK")
     legend = "".join(
-        f'<span class="key"><i style="background:{SERIES_COLOURS[d]}"></i>{d}</span>'
+        f'<span class="key"><i style="background:{SERIES_COLOURS[d]}"></i>{display_date(d)}</span>'
         for d in EXPECTED_DATES
     )
     runs_copy = (f"{landed} {'run' if landed == 1 else 'runs'}, " +
@@ -383,6 +430,7 @@ def render_html(observations, now: datetime, repo: str) -> str:
   .card {{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }}
   .card.stale {{ opacity:.6; }}
   .card h3 {{ margin:0 0 6px; font-size:13px; color:var(--muted); font-weight:600; }}
+  .flight-count {{ margin:-4px 0 1px; color:var(--muted); font-size:12px; }}
   .days-out {{ margin:-4px 0 6px; color:var(--muted); font-size:12px; }}
   .price {{ margin:0; font-size:27px; font-weight:680; letter-spacing:-.02em; }}
   .delta {{ margin:6px 0 2px; font-size:13px; font-weight:600; }}
@@ -444,7 +492,7 @@ def render_html(observations, now: datetime, repo: str) -> str:
   <header>
     <div>
       <h1>{ROUTE} &middot; nonstop economy</h1>
-      <p class="sub">Cheapest displayed fares for 1&ndash;3 September 2026, sampled hourly by GitHub Actions.</p>
+      <p class="sub">Cheapest displayed fares for {display_date(EXPECTED_DATES[0])}&ndash;{display_date(EXPECTED_DATES[-1])}, sampled hourly by GitHub Actions.</p>
     </div>
     <span class="status {state}">{headline}</span>
   </header>
@@ -491,7 +539,7 @@ def render_html(observations, now: datetime, repo: str) -> str:
   </div>
 
   <footer>
-    Generated {now:%Y-%m-%d %H:%M} UTC / {now.astimezone(IST):%H:%M} IST &middot;
+    Generated {display_datetime(now)} UTC / {now.astimezone(IST):%H:%M} IST &middot;
     {ok_rows} fare checks &middot;
     <a href="https://github.com/{repo}">source</a> &middot;
     <a href="https://github.com/{repo}/blob/main/data/flight_prices.csv">raw CSV</a>.
@@ -522,7 +570,7 @@ def render_readme_block(observations, now: datetime, repo: str) -> str:
         f"### {ROUTE} &middot; nonstop economy &middot; status: **{badge}**",
         "",
         f"[**Open the dashboard**](https://{repo.split('/')[0]}.github.io/{repo.split('/')[1]}/) "
-        "&middot; hourly samples of the cheapest displayed fare for 1&ndash;3 Sep 2026.",
+        f"&middot; hourly samples of the cheapest displayed fare for {display_date(EXPECTED_DATES[0])}&ndash;{display_date(EXPECTED_DATES[-1])}.",
         "",
         "| Departure | Cheapest now | 24h change | Low | High |",
         "|---|---|---|---|---|",
@@ -530,19 +578,19 @@ def render_readme_block(observations, now: datetime, repo: str) -> str:
     for dep_date in EXPECTED_DATES:
         pts = series.get(dep_date, [])
         if not pts:
-            lines.append(f"| {dep_date} | – | – | – | – |")
+            lines.append(f"| {display_date(dep_date)} | – | – | – | – |")
             continue
         stamp, current = pts[-1]
         earlier = [p for t, p in pts if t <= stamp - timedelta(hours=24)]
         baseline = earlier[-1] if earlier else pts[0][1]
         delta = current - baseline
         change = "no change" if delta == 0 else f"{'▲' if delta > 0 else '▼'} {rupees(abs(delta))}"
-        lines += [f"| {dep_date} | **{rupees(current)}** | {change} | "
+        lines += [f"| {display_date(dep_date)} | **{rupees(current)}** | {change} | "
                   f"{rupees(min(p for _, p in pts))} | {rupees(max(p for _, p in pts))} |"]
 
     lines += [
         "",
-        f"_Updated {now:%Y-%m-%d %H:%M} UTC by the hourly workflow. "
+        f"_Updated {display_datetime(now)} UTC by the hourly workflow. "
         "Figures are displayed fares, not booking quotes._",
         "",
         README_END,
