@@ -1,0 +1,2 @@
+# Preserve captured Google Flights inner_text bytes exactly.
+tests/fixtures/*.txt -text
