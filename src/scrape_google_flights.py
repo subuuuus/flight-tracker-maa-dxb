@@ -161,7 +161,16 @@ def parse_card(text: str) -> dict[str, object] | None:
     if "Business Class" in lines or "First Class" in lines:
         return None
 
-    prices = PRICE_RE.findall(joined)
+    price_matches = list(PRICE_RE.finditer(joined))
+    prices = [
+        match.group(1)
+        for index, match in enumerate(price_matches)
+        if not re.search(
+            r"round[-\s]+trip",
+            joined[match.end() : price_matches[index + 1].start() if index + 1 < len(price_matches) else len(joined)],
+            re.IGNORECASE,
+        )
+    ]
     times = TIME_RE.findall(joined)
     if not prices or len(times) < 2:
         return None
