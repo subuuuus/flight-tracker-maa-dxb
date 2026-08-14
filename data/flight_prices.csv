@@ -143,3 +143,6 @@
 2026-08-14T17:10:11+00:00,google_flights,MAA,DXB,2026-09-03,34507,INR,OK,6E 1471,6E 1471,IndiGo,6:20 AM,8:55 AM,Nonstop,Economy,
 2026-08-14T17:10:11+00:00,google_flights,MAA,DXB,2026-09-03,75542,INR,OK,Emirates|4:05 AM|6:40 AM|nonstop|Economy,,Emirates,4:05 AM,6:40 AM,Nonstop,Economy,
 2026-08-14T17:10:11+00:00,google_flights,MAA,DXB,2026-09-03,75542,INR,OK,EK 547,EK 547,Emirates,10:05 PM,12:40 AM+1,Nonstop,Economy,
+2026-08-14T18:05:57+00:00,google_flights,MAA,DXB,2026-09-01,,INR,ERROR,,,,,,,Economy,RuntimeError: Flight results did not load before timeout
+2026-08-14T18:06:28+00:00,google_flights,MAA,DXB,2026-09-02,,INR,ERROR,,,,,,,Economy,RuntimeError: Flight results did not load before timeout
+2026-08-14T18:07:00+00:00,google_flights,MAA,DXB,2026-09-03,,INR,ERROR,,,,,,,Economy,RuntimeError: Flight results did not load before timeout
