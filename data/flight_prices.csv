@@ -645,3 +645,6 @@
 2026-08-17T23:35:50+00:00,google_flights,MAA,DXB,2026-09-01,,INR,ERROR,,,,,,,Economy,RuntimeError: Flight results did not load before timeout
 2026-08-17T23:36:21+00:00,google_flights,MAA,DXB,2026-09-02,,INR,ERROR,,,,,,,Economy,RuntimeError: Flight results did not load before timeout
 2026-08-17T23:36:52+00:00,google_flights,MAA,DXB,2026-09-03,,INR,ERROR,,,,,,,Economy,RuntimeError: Flight results did not load before timeout
+2026-08-18T01:51:17+00:00,google_flights,MAA,DXB,2026-09-01,,INR,ERROR,,,,,,,Economy,RuntimeError: Flight results did not load before timeout
+2026-08-18T01:51:48+00:00,google_flights,MAA,DXB,2026-09-02,,INR,ERROR,,,,,,,Economy,RuntimeError: Flight results did not load before timeout
+2026-08-18T01:52:19+00:00,google_flights,MAA,DXB,2026-09-03,,INR,ERROR,,,,,,,Economy,RuntimeError: Flight results did not load before timeout
