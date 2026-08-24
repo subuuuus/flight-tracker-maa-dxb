@@ -1294,3 +1294,10 @@
 2026-08-24T14:01:01+00:00,google_flights,MAA,DXB,2026-09-01,75565,INR,OK,EK 543,EK 543,Emirates,4:35 AM,7:00 AM,Nonstop,Economy,
 2026-08-24T14:01:04+00:00,google_flights,MAA,DXB,2026-09-02,43447,INR,OK,6E 1471,6E 1471,IndiGo,6:20 AM,8:55 AM,Nonstop,Economy,
 2026-08-24T14:01:06+00:00,google_flights,MAA,DXB,2026-09-03,40140,INR,OK,6E 1471,6E 1471,IndiGo,6:20 AM,8:55 AM,Nonstop,Economy,
+2026-08-24T14:59:11+00:00,google_flights,MAA,DXB,2026-09-01,,INR,ERROR,,,,,,,Economy,"TimeoutError: Locator.inner_text: Timeout 30000ms exceeded.
+Call log:
+  - waiting for locator(""li"").nth(39)
+"
+2026-08-24T14:59:15+00:00,google_flights,MAA,DXB,2026-09-02,43447,INR,OK,6E 1471,6E 1471,IndiGo,6:20 AM,8:55 AM,Nonstop,Economy,
+2026-08-24T14:59:24+00:00,google_flights,MAA,DXB,2026-09-03,40140,INR,OK,6E 1471,6E 1471,IndiGo,6:20 AM,8:55 AM,Nonstop,Economy,
+2026-08-24T14:59:24+00:00,google_flights,MAA,DXB,2026-09-03,75565,INR,OK,Emirates|9:50 AM|12:20 PM|nonstop|Economy,,Emirates,9:50 AM,12:20 PM,Nonstop,Economy,
