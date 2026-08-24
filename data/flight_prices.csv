@@ -1261,3 +1261,8 @@
 2026-08-24T04:06:15+00:00,google_flights,MAA,DXB,2026-09-02,43447,INR,OK,IndiGo|6:20 AM|8:55 AM|nonstop|Economy,,IndiGo,6:20 AM,8:55 AM,Nonstop,Economy,
 2026-08-24T04:06:15+00:00,google_flights,MAA,DXB,2026-09-02,75565,INR,OK,EK 545,EK 545,Emirates,9:50 AM,12:20 PM,Nonstop,Economy,
 2026-08-24T04:06:16+00:00,google_flights,MAA,DXB,2026-09-03,37095,INR,OK,6E 1471,6E 1471,IndiGo,6:20 AM,8:55 AM,Nonstop,Economy,
+2026-08-24T05:00:14+00:00,google_flights,MAA,DXB,2026-09-01,43447,INR,OK,6E 1471,6E 1471,IndiGo,6:20 AM,8:55 AM,Nonstop,Economy,
+2026-08-24T05:00:14+00:00,google_flights,MAA,DXB,2026-09-01,75565,INR,OK,Emirates|9:50 AM|12:20 PM|nonstop|Economy,,Emirates,9:50 AM,12:20 PM,Nonstop,Economy,
+2026-08-24T05:00:24+00:00,google_flights,MAA,DXB,2026-09-02,43447,INR,OK,6E 1471,6E 1471,IndiGo,6:20 AM,8:55 AM,Nonstop,Economy,
+2026-08-24T05:00:24+00:00,google_flights,MAA,DXB,2026-09-02,75565,INR,OK,Emirates|9:50 AM|12:20 PM|nonstop|Economy,,Emirates,9:50 AM,12:20 PM,Nonstop,Economy,
+2026-08-24T05:00:27+00:00,google_flights,MAA,DXB,2026-09-03,37095,INR,OK,6E 1471,6E 1471,IndiGo,6:20 AM,8:55 AM,Nonstop,Economy,
