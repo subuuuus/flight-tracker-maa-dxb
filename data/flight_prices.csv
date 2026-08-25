@@ -1374,3 +1374,7 @@ Call log:
 2026-08-25T07:07:19+00:00,google_flights,MAA,DXB,2026-09-02,37095,INR,OK,6E 1471,6E 1471,IndiGo,6:20 AM,8:55 AM,Nonstop,Economy,
 2026-08-25T07:07:19+00:00,google_flights,MAA,DXB,2026-09-02,75565,INR,OK,Emirates|9:50 AM|12:20 PM|nonstop|Economy,,Emirates,9:50 AM,12:20 PM,Nonstop,Economy,
 2026-08-25T07:07:21+00:00,google_flights,MAA,DXB,2026-09-03,40140,INR,OK,6E 1471,6E 1471,IndiGo,6:20 AM,8:55 AM,Nonstop,Economy,
+2026-08-25T07:57:18+00:00,google_flights,MAA,DXB,2026-09-01,40140,INR,OK,6E 1471,6E 1471,IndiGo,6:20 AM,8:55 AM,Nonstop,Economy,
+2026-08-25T07:57:28+00:00,google_flights,MAA,DXB,2026-09-02,40140,INR,OK,6E 1471,6E 1471,IndiGo,6:20 AM,8:55 AM,Nonstop,Economy,
+2026-08-25T07:57:28+00:00,google_flights,MAA,DXB,2026-09-02,75565,INR,OK,Emirates|9:50 AM|12:20 PM|nonstop|Economy,,Emirates,9:50 AM,12:20 PM,Nonstop,Economy,
+2026-08-25T07:57:30+00:00,google_flights,MAA,DXB,2026-09-03,40140,INR,OK,6E 1471,6E 1471,IndiGo,6:20 AM,8:55 AM,Nonstop,Economy,
