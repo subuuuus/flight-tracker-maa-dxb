@@ -1383,3 +1383,7 @@ Call log:
 2026-08-25T08:58:23+00:00,google_flights,MAA,DXB,2026-09-02,75565,INR,OK,Emirates|9:50 AM|12:20 PM|nonstop|Economy,,Emirates,9:50 AM,12:20 PM,Nonstop,Economy,
 2026-08-25T08:58:23+00:00,google_flights,MAA,DXB,2026-09-02,75565,INR,OK,EK 547,EK 547,Emirates,10:05 PM,12:40 AM+1,Nonstop,Economy,
 2026-08-25T08:58:26+00:00,google_flights,MAA,DXB,2026-09-03,40140,INR,OK,6E 1471,6E 1471,IndiGo,6:20 AM,8:55 AM,Nonstop,Economy,
+2026-08-25T09:50:24+00:00,google_flights,MAA,DXB,2026-09-01,40140,INR,OK,6E 1471,6E 1471,IndiGo,6:20 AM,8:55 AM,Nonstop,Economy,
+2026-08-25T09:50:34+00:00,google_flights,MAA,DXB,2026-09-02,40140,INR,OK,6E 1471,6E 1471,IndiGo,6:20 AM,8:55 AM,Nonstop,Economy,
+2026-08-25T09:50:34+00:00,google_flights,MAA,DXB,2026-09-02,75565,INR,OK,Emirates|10:05 PM|12:40 AM+1|nonstop|Economy,,Emirates,10:05 PM,12:40 AM+1,Nonstop,Economy,
+2026-08-25T09:50:36+00:00,google_flights,MAA,DXB,2026-09-03,40140,INR,OK,6E 1471,6E 1471,IndiGo,6:20 AM,8:55 AM,Nonstop,Economy,
