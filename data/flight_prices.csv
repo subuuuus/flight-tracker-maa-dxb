@@ -1576,3 +1576,9 @@ Call log:
 Call log:
   - waiting for locator(""li"").nth(37)
 "
+2026-08-27T14:15:30+00:00,google_flights,MAA,DXB,2026-09-01,50850,INR,OK,6E 1471,6E 1471,IndiGo,6:20 AM,8:55 AM,Nonstop,Economy,
+2026-08-27T14:15:30+00:00,google_flights,MAA,DXB,2026-09-01,75556,INR,OK,Emirates|10:05 PM|12:40 AM+1|nonstop|Economy,,Emirates,10:05 PM,12:40 AM+1,Nonstop,Economy,
+2026-08-27T14:15:33+00:00,google_flights,MAA,DXB,2026-09-02,40140,INR,OK,6E 1471,6E 1471,IndiGo,6:20 AM,8:55 AM,Nonstop,Economy,
+2026-08-27T14:15:42+00:00,google_flights,MAA,DXB,2026-09-03,37095,INR,OK,6E 1471,6E 1471,IndiGo,6:20 AM,8:55 AM,Nonstop,Economy,
+2026-08-27T14:15:42+00:00,google_flights,MAA,DXB,2026-09-03,75556,INR,OK,EK 545,EK 545,Emirates,9:50 AM,12:20 PM,Nonstop,Economy,
+2026-08-27T14:15:42+00:00,google_flights,MAA,DXB,2026-09-03,75556,INR,OK,Emirates|10:05 PM|12:40 AM+1|nonstop|Economy,,Emirates,10:05 PM,12:40 AM+1,Nonstop,Economy,
