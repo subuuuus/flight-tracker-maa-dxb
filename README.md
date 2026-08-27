@@ -11,10 +11,10 @@ Hourly Google Flights fare tracker for MAA -> DXB, run entirely on GitHub Action
 | Departure | Cheapest now | 24h change | Low | High |
 |---|---|---|---|---|
 | 01-Sep-26 | **₹50,850** | ▲ ₹3,833 | ₹37,095 | ₹50,850 |
-| 02-Sep-26 | **₹40,140** | ▲ ₹3,045 | ₹37,095 | ₹43,447 |
-| 03-Sep-26 | **₹37,095** | ▼ ₹6,352 | ₹34,312 | ₹43,447 |
+| 02-Sep-26 | **₹40,140** | no change | ₹37,095 | ₹43,447 |
+| 03-Sep-26 | **₹40,140** | ▼ ₹3,307 | ₹34,312 | ₹43,447 |
 
-_Updated 27-Aug-26 14:15 UTC by the hourly workflow. Figures are displayed fares, not booking quotes._
+_Updated 27-Aug-26 23:47 UTC by the hourly workflow. Figures are displayed fares, not booking quotes._
 
 <!-- DASHBOARD:END -->
 
